@@ -1,0 +1,124 @@
+<?php
+require('vendor/fpdf/fpdf.php');
+include 'config.php';
+class ModernInvoice extends FPDF {
+    function Header() {
+        // Modern header design
+        $this->SetFillColor(67, 97, 238);
+        $this->Rect(0, 0, 210, 40, 'F');
+        $this->SetY(15);
+        $this->SetFont('Arial', 'B', 24);
+        $this->SetTextColor(255, 255, 255);
+        $this->Cell(0, 10, 'INVOICE', 0, 1, 'C');
+        $this->Ln(20);
+    }
+    
+    function Footer() {
+        $this->SetY(-15);
+        $this->SetFont('Arial', 'I', 8);
+        $this->SetTextColor(128, 128, 128);
+        $this->Cell(0, 10, 'Page ' . $this->PageNo(), 0, 0, 'C');
+    }
+}
+
+class ClassicInvoice extends FPDF {
+    function Header() {
+        // Classic header design
+        $this->SetFont('Arial', 'B', 16);
+        $this->Cell(0, 10, 'INVOICE', 0, 1, 'L');
+        $this->Line(10, 15, 200, 15);
+        $this->Ln(10);
+    }
+}
+class MinimalInvoice extends FPDF {
+    function Header() {
+        $this->SetFont('Arial','B',14);
+        $this->Cell(0,10,'INVOICE',0,1,'R');
+        $this->Ln(5);
+    }
+}
+class ProfessionalInvoice extends FPDF {
+    function Header() {
+        $this->SetFont('Arial','B',18);
+        $this->SetTextColor(0,51,102);
+        $this->Cell(0,10,'PROFESSIONAL INVOICE',0,1,'C');
+        $this->Ln(5);
+    }
+}
+$invoice_id = intval($_GET['id']);
+$template_id = isset($_GET['template']) ? intval($_GET['template']) : 1;
+switch($template_id) {
+    case 1: $pdf = new ModernInvoice(); break;
+    case 2: $pdf = new ClassicInvoice(); break;
+    case 3: $pdf = new MinimalInvoice(); break;
+    case 4: $pdf = new ProfessionalInvoice(); break;
+    default: $pdf = new ModernInvoice();
+}
+// Fetch invoice
+$stmt = $conn->prepare("
+    SELECT i.*, c.name as client_name, c.email, c.phone 
+    FROM invoices i 
+    JOIN clients c ON i.client_id=c.id 
+    WHERE i.id=:id
+");
+$stmt->execute([':id' => $invoice_id]);
+$invoice = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if(!$invoice){
+    die("Invoice not found.");
+}
+
+// Fetch invoice items
+$stmt_items = $conn->prepare("
+    SELECT p.name, ii.quantity, ii.price 
+    FROM invoice_items ii 
+    JOIN products p ON ii.product_id=p.id 
+    WHERE ii.invoice_id=:id
+");
+$stmt_items->execute([':id' => $invoice_id]);
+$items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
+
+$pdf = new FPDF();
+$pdf->AddPage();
+$pdf->SetFont('Arial','B',16);
+
+// Invoice header
+$pdf->Cell(0,10,'INVOICE #'.$invoice['id'],0,1,'C');
+$pdf->Ln(10);
+
+// Client information
+$pdf->SetFont('Arial','B',12);
+$pdf->Cell(0,10,'Bill To:',0,1);
+$pdf->SetFont('Arial','',12);
+$pdf->Cell(0,10,$invoice['client_name'],0,1);
+$pdf->Cell(0,10,'Email: '.$invoice['email'],0,1);
+$pdf->Cell(0,10,'Phone: '.$invoice['phone'],0,1);
+$pdf->Cell(0,10,'Date: '.date('M d, Y', strtotime($invoice['date'])),0,1); // changed date_created -> date
+$pdf->Ln(10);
+
+// Table header
+$pdf->SetFont('Arial','B',12);
+$pdf->Cell(100,10,'Product',1);
+$pdf->Cell(30,10,'Qty',1);
+$pdf->Cell(30,10,'Price',1);
+$pdf->Cell(30,10,'Subtotal',1);
+$pdf->Ln();
+
+// Table rows
+$pdf->SetFont('Arial','',12);
+foreach($items as $item){
+    $subtotal = $item['quantity'] * $item['price'];
+    $pdf->Cell(100,10,$item['name'],1);
+    $pdf->Cell(30,10,$item['quantity'],1);
+    $pdf->Cell(30,10,'$'.number_format($item['price'],2),1);
+    $pdf->Cell(30,10,'$'.number_format($subtotal,2),1);
+    $pdf->Ln();
+}
+
+// Total
+$pdf->Ln(5);
+$pdf->SetFont('Arial','B',12);
+$pdf->Cell(0,10,'Total: $'.number_format($invoice['total'],2),0,1);
+
+$pdf->Output('I','invoice_'.$invoice['id'].'.pdf');
+?>
