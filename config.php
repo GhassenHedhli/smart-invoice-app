@@ -12,12 +12,20 @@ try {
 
     // Create tables if they don't exist
     $conn->exec("
-        CREATE TABLE IF NOT EXISTS admins (
+        CREATE TABLE IF NOT EXISTS roles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            permissions TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
             email TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            role_id INTEGER DEFAULT 2,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(role_id) REFERENCES roles(id)
         );
 
         CREATE TABLE IF NOT EXISTS clients (
@@ -25,12 +33,17 @@ try {
             name TEXT NOT NULL,
             email TEXT,
             phone TEXT,
+            address TEXT,
+            login_enabled BOOLEAN DEFAULT 0,
+            login_email TEXT,
+            login_password TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
+            description TEXT,
             price REAL NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
@@ -42,6 +55,8 @@ try {
             total REAL NOT NULL,
             status TEXT DEFAULT 'pending',
             template_id INTEGER DEFAULT 1,
+            sent_via_email BOOLEAN DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(client_id) REFERENCES clients(id)
         );
 
@@ -54,69 +69,34 @@ try {
             FOREIGN KEY(invoice_id) REFERENCES invoices(id),
             FOREIGN KEY(product_id) REFERENCES products(id)
         );
-        CREATE TABLE IF NOT EXISTS users (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            username VARCHAR(50) UNIQUE NOT NULL,
-            email VARCHAR(100) UNIQUE,
-            password VARCHAR(255) NOT NULL,
-            role ENUM('admin','manager','viewer') DEFAULT 'viewer',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
     ");
 
-    // Check if columns exist and add them if missing (for existing tables)
-    $tablesToAlter = [
-        'clients' => [
-            ['column' => 'address', 'type' => 'TEXT'],
-            ['column' => 'created_at', 'type' => 'DATETIME DEFAULT CURRENT_TIMESTAMP']
-        ],
-        'products' => [
-            ['column' => 'description', 'type' => 'TEXT'],
-            ['column' => 'created_at', 'type' => 'DATETIME DEFAULT CURRENT_TIMESTAMP']
-        ],
-        'invoices' => [
-            ['column' => 'status', 'type' => 'TEXT DEFAULT "pending"'],
-            ['column' => 'template_id', 'type' => 'INTEGER DEFAULT 1']
-        ]
-    ];
-
-    foreach ($tablesToAlter as $tableName => $columns) {
-        foreach ($columns as $columnDef) {
-            try {
-                // Check if column exists by trying to select it
-                $conn->query("SELECT {$columnDef['column']} FROM {$tableName} LIMIT 1");
-            } catch (Exception $e) {
-                // Column doesn't exist, so add it
-                $colType = $columnDef['type'];
-
-                // SQLite limitation: strip DEFAULT CURRENT_TIMESTAMP for ALTER TABLE
-                if (stripos($colType, 'DEFAULT CURRENT_TIMESTAMP') !== false) {
-                    $colType = 'DATETIME'; // add column without default
-                }
-
-                $conn->exec("ALTER TABLE {$tableName} ADD COLUMN {$columnDef['column']} {$colType}");
-                error_log("Added column {$columnDef['column']} to table {$tableName}");
-
-                error_log("Added column {$columnDef['column']} to table {$tableName}");
-            }
-        }
+    // Insert default roles if they don't exist
+    $checkRoles = $conn->query("SELECT COUNT(*) as count FROM roles")->fetch(PDO::FETCH_ASSOC);
+    
+    if ($checkRoles['count'] == 0) {
+        $conn->exec("
+            INSERT INTO roles (name, permissions) VALUES 
+            ('Administrator', 'all'),
+            ('Manager', 'clients,products,invoices,reports'),
+            ('Viewer', 'reports,dashboard')
+        ");
     }
 
     // Check if admin user exists, if not create default one
-    $checkAdmin = $conn->query("SELECT COUNT(*) as count FROM admins")->fetch(PDO::FETCH_ASSOC);
+    $checkAdmin = $conn->query("SELECT COUNT(*) as count FROM users")->fetch(PDO::FETCH_ASSOC);
     
     if ($checkAdmin['count'] == 0) {
-        // Create default admin user (using password_hash for security)
+        // Create default admin user
         $defaultPassword = password_hash('admin123', PASSWORD_DEFAULT);
-        $stmt = $conn->prepare("INSERT INTO admins (username, password, email) VALUES (:username, :password, :email)");
+        $stmt = $conn->prepare("INSERT INTO users (username, password, email, role_id) VALUES (:username, :password, :email, 1)");
         $stmt->execute([
             ':username' => 'admin',
             ':password' => $defaultPassword,
             ':email' => 'admin@invoicepro.com'
         ]);
         
-        // Add some sample data for demonstration (only if tables are empty)
+        // Add some sample data for demonstration
         $clientCount = $conn->query("SELECT COUNT(*) as count FROM clients")->fetch(PDO::FETCH_ASSOC)['count'];
         $productCount = $conn->query("SELECT COUNT(*) as count FROM products")->fetch(PDO::FETCH_ASSOC)['count'];
         
@@ -157,5 +137,4 @@ try {
     </html>";
     exit;
 }
-
 ?>

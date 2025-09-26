@@ -1,8 +1,38 @@
 <?php
 session_start();
-if(!isset($_SESSION['admin'])){
+if(!isset($_SESSION['user'])){
     header("Location: login.php");
     exit;
+}
+
+include 'config.php';
+
+// Get current user role and permissions
+$stmt = $conn->prepare("
+    SELECT u.*, r.name as role_name, r.permissions 
+    FROM users u 
+    LEFT JOIN roles r ON u.role_id = r.id 
+    WHERE u.id = :user_id
+");
+$stmt->execute([':user_id' => $_SESSION['user']]);
+$currentUser = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if(!$currentUser){
+    session_destroy();
+    header("Location: login.php");
+    exit;
+}
+
+// Check permission function
+function hasPermission($permission) {
+    global $currentUser;
+    
+    if($currentUser['role_name'] == 'Administrator') {
+        return true;
+    }
+    
+    $permissions = explode(',', $currentUser['permissions']);
+    return in_array($permission, $permissions) || in_array('all', $permissions);
 }
 ?>
 <!DOCTYPE html>
@@ -49,16 +79,24 @@ if(!isset($_SESSION['admin'])){
                             <i class="bi bi-speedometer2"></i> Dashboard
                         </a>
                     </li>
+                    
+                    <?php if(hasPermission('clients')): ?>
                     <li class="nav-item">
                         <a class="nav-link" href="clients.php">
                             <i class="bi bi-people"></i> Clients
                         </a>
                     </li>
+                    <?php endif; ?>
+                    
+                    <?php if(hasPermission('products')): ?>
                     <li class="nav-item">
                         <a class="nav-link" href="products.php">
                             <i class="bi bi-box-seam"></i> Products
                         </a>
                     </li>
+                    <?php endif; ?>
+                    
+                    <?php if(hasPermission('invoices')): ?>
                     <li class="nav-item">
                         <a class="nav-link" href="invoices.php">
                             <i class="bi bi-file-earmark-text"></i> Invoices
@@ -69,13 +107,32 @@ if(!isset($_SESSION['admin'])){
                             <i class="bi bi-plus-circle"></i> Create Invoice
                         </a>
                     </li>
+                    <?php endif; ?>
+                    
+                    <?php if(hasPermission('users')): ?>
+                    <li class="nav-item">
+                        <a class="nav-link" href="manage_users.php">
+                            <i class="bi bi-person-gear"></i> Users
+                        </a>
+                    </li>
+                    <?php endif; ?>
                 </ul>
                 
                 <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="logout.php">
-                            <i class="bi bi-box-arrow-right"></i> Logout
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle"></i> <?php echo htmlspecialchars($currentUser['username']); ?>
+                            (<?php echo $currentUser['role_name']; ?>)
                         </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="client_login.php" target="_blank">
+                                <i class="bi bi-box-arrow-up-right"></i> Client Portal
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="logout.php">
+                                <i class="bi bi-box-arrow-right"></i> Logout
+                            </a></li>
+                        </ul>
                     </li>
                 </ul>
             </div>
@@ -83,16 +140,3 @@ if(!isset($_SESSION['admin'])){
     </nav>
 
     <main class="container-fluid py-4">
-
-            </main>
-
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Theme Toggle Script -->
-    <script src="assets/js/theme.js"></script>
-    
-    <!-- Charts Initialization -->
-    <script src="assets/js/charts.js"></script>
-</body>
-</html>
