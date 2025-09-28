@@ -20,20 +20,16 @@ if(isset($_POST['save'])) {
         if(!in_array($ext, $allowed)){
             $errorMessage = "Unsupported logo format. Please upload JPG or PNG.";
         } else {
-            $filename = 'uploads/logo_' . uniqid() . '.' . $ext;
-            move_uploaded_file($_FILES['logo']['tmp_name'], $filename);
-
-            // Convert PNG to JPEG for FPDF
-            if($ext === 'png'){
-                $im = imagecreatefrompng($filename);
-                $jpegFile = str_replace('.png','.jpg',$filename);
-                imagejpeg($im, $jpegFile, 90);
-                imagedestroy($im);
-                unlink($filename); // remove original PNG
-                $filename = $jpegFile;
+            $uploadDir = __DIR__ . '/uploads/'; // absolute server path
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0777, true); // ensure uploads folder exists
             }
 
-            $logo_path = $filename; // save path to DB
+            $absolutePath = $uploadDir . 'logo_' . uniqid() . '.' . $ext;
+            move_uploaded_file($_FILES['logo']['tmp_name'], $absolutePath);
+
+            // Save only the relative path into DB (for HTML display)
+            $logo_path = 'uploads/' . basename($absolutePath);
         }
 }
 
