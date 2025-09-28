@@ -233,7 +233,10 @@ include 'header.php';
                         <button type="submit" name="create" class="btn btn-lg" style="background-color: <?= htmlspecialchars($settings['primary_color']) ?>; color: #fff;">
                             <i class="bi bi-file-earmark-plus"></i> Create Invoice
                         </button>
-                        <a href="dashboard.php" class="btn btn-outline-secondary">Cancel</a>
+                        <a href="invoice_builder.php" class="btn btn-lg" style="background-color: <?= htmlspecialchars($settings['secondary_color']) ?>; color: #fff;">
+                            <i class="bi bi-layout-text-sidebar"></i> Drag & Drop Builder
+                        </a>
+                            <a href="dashboard.php" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </form>
             </div>

@@ -3,6 +3,15 @@ $pageTitle = "Dashboard";
 include 'header.php';
 include 'config.php';
 
+$view = $_GET['view'] ?? 'monthly';
+// Handle revenue range filter
+$range = $_GET['range'] ?? '6m';
+switch($range) {
+    case '12m': $limit = 12; break;
+    case 'all': $limit = 1000; break;
+    default: $limit = 6;
+}
+
 // Get totals
 $totalClients = $conn->query("SELECT COUNT(*) as count FROM clients")->fetch(PDO::FETCH_ASSOC)['count'];
 $totalProducts = $conn->query("SELECT COUNT(*) as count FROM products")->fetch(PDO::FETCH_ASSOC)['count'];
@@ -19,14 +28,28 @@ $recentInvoices = $conn->query("
     LIMIT 5
 ")->fetchAll(PDO::FETCH_ASSOC);
 
-// Monthly revenue data for chart
-$monthlyRevenue = $conn->query("
-    SELECT strftime('%Y-%m', date) as month, SUM(total) as revenue
-    FROM invoices 
-    GROUP BY month 
-    ORDER BY month DESC 
-    LIMIT 6
-")->fetchAll(PDO::FETCH_ASSOC);
+// Monthly revenue data for chart (MySQL syntax)
+if ($view === 'daily') {
+    // group by day
+    $monthlyRevenue = $conn->query("
+        SELECT strftime('%Y-%m-%d', date) as period, SUM(total) as revenue
+        FROM invoices 
+        GROUP BY period 
+        ORDER BY period DESC 
+        LIMIT 30
+    ")->fetchAll(PDO::FETCH_ASSOC);
+} else {
+    // group by month
+    $limit = ($range === '12m') ? 12 : (($range === 'all') ? 1000 : 6);
+    $monthlyRevenue = $conn->query("
+        SELECT strftime('%Y-%m', date) as period, SUM(total) as revenue
+        FROM invoices 
+        GROUP BY period 
+        ORDER BY period DESC 
+        LIMIT $limit
+    ")->fetchAll(PDO::FETCH_ASSOC);
+}
+
 ?>
 
 <div class="row mb-4">
@@ -107,9 +130,23 @@ $monthlyRevenue = $conn->query("
 <div class="row g-4 mb-5">
     <div class="col-lg-8">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Revenue Overview</h5>
+                <form method="get" class="d-flex gap-2 mb-0">
+                    <select name="view" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="monthly" <?= ($view=='monthly')?'selected':'' ?>>Monthly</option>
+                        <option value="daily" <?= ($view=='daily')?'selected':'' ?>>Daily</option>
+                    </select>
+                    <?php if ($view === 'monthly'): ?>
+                    <select name="range" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="6m" <?= ($range=='6m')?'selected':'' ?>>Last 6 Months</option>
+                        <option value="12m" <?= ($range=='12m')?'selected':'' ?>>Last 12 Months</option>
+                        <option value="all" <?= ($range=='all')?'selected':'' ?>>All Time</option>
+                    </select>
+                    <?php endif; ?>
+                </form>
             </div>
+
             <div class="card-body">
                 <canvas id="revenueChart" height="250"></canvas>
             </div>
@@ -180,19 +217,30 @@ $monthlyRevenue = $conn->query("
     </div>
 </div>
 
+<!-- Inject PHP data into JS -->
 <script>
-// Revenue Chart Data
-const revenueData = {
-    labels: [<?php echo implode(',', array_map(function($item) { return "'" . date('M Y', strtotime($item['month'] . '-01')) . "'"; }, array_reverse($monthlyRevenue))); ?>],
+window.revenueData = {
+    labels: [<?php echo implode(',', array_map(function($item) use ($view) { 
+        return "'" . ($view=='daily' 
+            ? date('M j', strtotime($item['period'])) 
+            : date('M Y', strtotime($item['period'].'-01'))
+        ) . "'"; 
+    }, array_reverse($monthlyRevenue))); ?>],
     datasets: [{
-        label: 'Monthly Revenue',
+        label: '<?= ucfirst($view) ?> Revenue',
         data: [<?php echo implode(',', array_map(function($item) { return $item['revenue']; }, array_reverse($monthlyRevenue))); ?>],
         borderColor: '#0d6efd',
-        backgroundColor: 'rgba(13, 110, 253, 0.1)',
-        borderWidth: 2,
-        fill: true
+        borderWidth: 3,
+        fill: false,
+        tension: 0, // zigzag
+        pointRadius: 5,
+        pointBackgroundColor: '#0d6efd',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2
     }]
 };
 </script>
 
+
+<script src="assets/js/chart.js"></script>
 <?php include 'footer.php'; ?>

@@ -80,7 +80,27 @@ try {
         secondary_color TEXT DEFAULT '#6c757d',
         tax_rate REAL DEFAULT 0
     );
+        CREATE TABLE IF NOT EXISTS invoice_templates (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            template_data TEXT NOT NULL,
+            client_id INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
+        );
+
+        CREATE TRIGGER IF NOT EXISTS update_invoice_templates_timestamp 
+        AFTER UPDATE ON invoice_templates
+        FOR EACH ROW
+        BEGIN
+            UPDATE invoice_templates SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+        END;
+
+        CREATE INDEX IF NOT EXISTS idx_invoice_templates_client_id ON invoice_templates(client_id);
+        CREATE INDEX IF NOT EXISTS idx_invoice_templates_created_at ON invoice_templates(created_at);
     ");
+    
     $checkSettings = $conn->query("SELECT COUNT(*) as count FROM invoice_settings")->fetch(PDO::FETCH_ASSOC);
     if ($checkSettings['count'] == 0) {
         $conn->exec("INSERT INTO invoice_settings (company_name, company_email, company_phone, company_address, logo_path, primary_color, secondary_color, tax_rate) VALUES
