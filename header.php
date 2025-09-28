@@ -1,39 +1,5 @@
 <?php
-session_start();
-if(!isset($_SESSION['user'])){
-    header("Location: login.php");
-    exit;
-}
-
-include 'config.php';
-
-// Get current user role and permissions
-$stmt = $conn->prepare("
-    SELECT u.*, r.name as role_name, r.permissions 
-    FROM users u 
-    LEFT JOIN roles r ON u.role_id = r.id 
-    WHERE u.id = :user_id
-");
-$stmt->execute([':user_id' => $_SESSION['user']]);
-$currentUser = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if(!$currentUser){
-    session_destroy();
-    header("Location: login.php");
-    exit;
-}
-
-// Check permission function
-function hasPermission($permission) {
-    global $currentUser;
-    
-    if($currentUser['role_name'] == 'Administrator') {
-        return true;
-    }
-    
-    $permissions = explode(',', $currentUser['permissions']);
-    return in_array($permission, $permissions) || in_array('all', $permissions);
-}
+include_once 'auth.php';
 ?>
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="auto">

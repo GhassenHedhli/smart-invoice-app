@@ -19,9 +19,23 @@ include 'header.php';
 <div class="row">
     <div class="col-md-6">
         <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Add New Product</h5>
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Products Management</h5>
+                <div>
+                    <div class="btn-group me-2">
+                        <a href="export.php?export=products&format=csv" class="btn btn-light btn-sm">
+                            <i class="bi bi-download"></i> Export CSV
+                        </a>
+                        <a href="export.php?export=products&format=xlsx" class="btn btn-warning btn-sm">
+                            <i class="bi bi-download"></i> Export XLSX
+                        </a>
+                    </div>
+                    <a href="dashboard.php" class="btn btn-outline-light btn-sm">
+                        <i class="bi bi-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
             </div>
+
             <div class="card-body">
                 <form method="POST">
                     <div class="mb-3">

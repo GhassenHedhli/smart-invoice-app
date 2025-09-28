@@ -69,8 +69,23 @@ try {
             FOREIGN KEY(invoice_id) REFERENCES invoices(id),
             FOREIGN KEY(product_id) REFERENCES products(id)
         );
+        CREATE TABLE IF NOT EXISTS invoice_settings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        company_name TEXT,
+        company_email TEXT,
+        company_phone TEXT,
+        company_address TEXT,
+        logo_path TEXT,
+        primary_color TEXT DEFAULT '#0d6efd',
+        secondary_color TEXT DEFAULT '#6c757d',
+        tax_rate REAL DEFAULT 0
+    );
     ");
-
+    $checkSettings = $conn->query("SELECT COUNT(*) as count FROM invoice_settings")->fetch(PDO::FETCH_ASSOC);
+    if ($checkSettings['count'] == 0) {
+        $conn->exec("INSERT INTO invoice_settings (company_name, company_email, company_phone, company_address, logo_path, primary_color, secondary_color, tax_rate) VALUES
+        ('My Company', 'info@mycompany.com', '+123456789', '123 Business St', '', '#0d6efd', '#6c757d', 0)");
+    }
     // Insert default roles if they don't exist
     $checkRoles = $conn->query("SELECT COUNT(*) as count FROM roles")->fetch(PDO::FETCH_ASSOC);
     

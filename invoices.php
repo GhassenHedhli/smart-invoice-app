@@ -11,9 +11,22 @@ include 'header.php';
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Invoices</h5>
-        <a href="dashboard.php" class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-arrow-left"></i> Back
-        </a>
+        <div>
+            <div class="btn-group me-2">
+                <a href="export.php?export=invoices&format=csv" class="btn btn-success btn-sm">
+                    <i class="bi bi-download"></i> Export CSV
+                </a>
+                <a href="export.php?export=invoices&format=xlsx" class="btn btn-primary btn-sm">
+                    <i class="bi bi-download"></i> Export XLSX
+                </a>
+            </div>
+            <a href="invoice_settings.php" class="btn btn-warning btn-sm">
+                <i class="bi bi-gear"></i> Invoice Settings
+            </a>
+            <a href="dashboard.php" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
