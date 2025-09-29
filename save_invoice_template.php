@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conn->prepare("
             INSERT INTO invoice_templates 
             (name, template_data, client_id, created_at) 
-            VALUES (:name, :template_data, :client_id, NOW())
+            VALUES (:name, :template_data, :client_id, CURRENT_TIMESTAMP)
         ");
 
         $stmt->execute([

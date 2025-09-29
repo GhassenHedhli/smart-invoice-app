@@ -20,6 +20,15 @@ $companyAddress = $settings['company_address'] ?? '';
 if (isset($_POST['create'])) {
     $client_id = intval($_POST['client_id']);
     $template_id = intval($_POST['template_id']);
+    if (strpos($template_id_raw, 'std_') === 0) {
+        // Standard template selected
+        $template_type = 'standard';
+        $template_id = $template_id_raw; // keep as string or map later
+    } else {
+        // Custom template from DB
+        $template_type = 'custom';
+        $template_id = intval($template_id_raw);
+    }
     $date = date('Y-m-d');
     $total = 0;
 
@@ -82,13 +91,20 @@ if (isset($_POST['create'])) {
 // Fetch clients and products
 $clients = $conn->query("SELECT * FROM clients")->fetchAll(PDO::FETCH_ASSOC);
 $products = $conn->query("SELECT * FROM products")->fetchAll(PDO::FETCH_ASSOC);
+// User-created templates
+$userTemplates = $conn->query("
+    SELECT id, name 
+    FROM invoice_templates
+    ORDER BY created_at DESC
+")->fetchAll(PDO::FETCH_ASSOC);
+
 
 // Invoice templates
-$templates = [
-    ['id' => 1, 'name' => 'Modern', 'preview' => 'modern.jpg'],
-    ['id' => 2, 'name' => 'Classic', 'preview' => 'classic.jpg'],
-    ['id' => 3, 'name' => 'Minimal', 'preview' => 'minimal.jpg'],
-    ['id' => 4, 'name' => 'Professional', 'preview' => 'professional.jpg']
+$standardTemplates = [
+    ['id' => 'std_1', 'name' => 'Modern', 'preview' => 'modern.jpg'],
+    ['id' => 'std_2', 'name' => 'Classic', 'preview' => 'classic.jpg'],
+    ['id' => 'std_3', 'name' => 'Minimal', 'preview' => 'minimal.jpg'],
+    ['id' => 'std_4', 'name' => 'Professional', 'preview' => 'professional.jpg']
 ];
 
 $pageTitle = "Create Invoice";
@@ -141,17 +157,30 @@ include 'header.php';
                         <div class="col-md-6">
                             <label class="form-label">Invoice Template</label>
                             <div class="row g-2">
-                                <?php foreach ($templates as $template): ?>
-                                    <div class="col-6">
-                                        <div class="invoice-template p-2 text-center border rounded" data-template="<?= $template['id'] ?>">
-                                            <div class="template-preview bg-light rounded p-3 mb-2">
-                                                <i class="bi bi-file-text display-6 text-muted"></i>
-                                            </div>
-                                            <small class="text-muted"><?= $template['name'] ?></small>
-                                            <input type="radio" name="template_id" value="<?= $template['id'] ?>" class="d-none" <?= $template['id'] == 1 ? 'checked' : '' ?>>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
+                                <div class="col-md-6">
+                                <label class="form-label">Select Invoice Template</label>
+                                <select name="template_id" class="form-select" required>
+                                    <optgroup label="Standard Templates">
+                                    <?php foreach ($standardTemplates as $t): ?>
+                                        <option value="<?= $t['id'] ?>">
+                                        <?= htmlspecialchars($t['name']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                    </optgroup>
+                                    <optgroup label="My Created Templates">
+                                    <?php if (!empty($userTemplates)): ?>
+                                        <?php foreach ($userTemplates as $t): ?>
+                                        <option value="<?= $t['id'] ?>">
+                                            <?= htmlspecialchars($t['name']) ?>
+                                        </option>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <option disabled>(No custom templates yet)</option>
+                                    <?php endif; ?>
+                                    </optgroup>
+                                </select>
+                                </div>
+
                             </div>
                         </div>
                     </div>
